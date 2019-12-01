@@ -130,7 +130,12 @@ func buildCommand() string {
 		if *evalFlag {
 			cmd = "-eval " + server_quote_arg(arg)
 		} else {
-			cmd = "-file " + server_quote_arg(arg)
+			// [+LINE[:COLUMN]]
+			if arg[0] == '+' {
+				cmd = "-position " + server_quote_arg(arg)
+			} else {
+				cmd = "-file " + server_quote_arg(arg)
+			}
 		}
 		commands = append(commands, cmd)
 	}
@@ -139,7 +144,12 @@ func buildCommand() string {
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] FILE...\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, `Usage: %s [OPTIONS] FILE...
+Tell the Emacs server to visit the specified files.
+Every FILE can be either just a FILENAME or [+LINE[:COLUMN]] FILENAME.
+
+The following OPTIONS are accepted:
+`, os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
