@@ -150,7 +150,7 @@ func main() {
 	}
 	conn, err := connect()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s", os.Args[0], err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
 	defer conn.Close()
@@ -159,7 +159,7 @@ func main() {
 		out = ioutil.Discard
 	}
 	if err := process(conn, out, buildCommand()); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s", os.Args[0], err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
 }
