@@ -2,11 +2,12 @@ package main
 
 import (
 	"bufio"
-	"log"
 	"bytes"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -20,8 +21,9 @@ var (
 )
 
 var (
-	evalFlag = flag.Bool("e", false, "Evaluate the FILE arguments as ELisp expressions")
-	nowaitFlag = flag.Bool("n", false, "Don't wait for the server to return")
+	evalFlag          = flag.Bool("e", false, "Evaluate the FILE arguments as ELisp expressions")
+	nowaitFlag        = flag.Bool("n", false, "Don't wait for the server to return")
+	supressoutputFlag = flag.Bool("u", false, "Don't display return values from the server")
 )
 
 // server_quote_arg is alternative to Emacs's server-quote-arg
@@ -84,16 +86,16 @@ func process(c net.Conn, output io.Writer, command string) error {
 		case strings.HasPrefix(line, "-emacs-pid"):
 			continue
 		case strings.HasPrefix(line, "-print "):
-			s = line[len("-print "):]+"\n"
+			s = line[len("-print "):] + "\n"
 			newline = true
 		case strings.HasPrefix(line, "-print-nonl "):
 			if newline {
-				buf.Truncate(buf.Len()-1)
+				buf.Truncate(buf.Len() - 1)
 			}
 			s = line[len("-print-nonl "):]
 			newline = false
 		case strings.HasPrefix(line, "-error "):
-			s = line[len("-error "):]+"\n"
+			s = line[len("-error "):] + "\n"
 			newline = true
 		default:
 			log.Printf("%q is not supported\n", line)
@@ -148,7 +150,11 @@ func main() {
 		os.Exit(1)
 	}
 	defer conn.Close()
-	if err := process(conn, os.Stdout, buildCommand()); err != nil {
+	var out io.Writer = os.Stdout
+	if *supressoutputFlag {
+		out = ioutil.Discard
+	}
+	if err := process(conn, out, buildCommand()); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s", os.Args[0], err)
 		os.Exit(1)
 	}
