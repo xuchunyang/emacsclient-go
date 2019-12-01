@@ -132,9 +132,14 @@ func buildCommand() string {
 }
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] FILE...\n", os.Args[0])
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 	if flag.NArg() == 0 {
 		fmt.Fprintf(os.Stderr, "%s: file name or argument required\n", os.Args[0])
+		flag.Usage()
 		os.Exit(1)
 	}
 	conn, err := connect()
