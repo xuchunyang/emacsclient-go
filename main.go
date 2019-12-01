@@ -17,7 +17,6 @@ import (
 
 var (
 	server_socket_dir = fmt.Sprintf("%s/emacs%d", os.TempDir(), os.Getuid())
-	server_name       = "server"
 )
 
 var (
@@ -25,6 +24,7 @@ var (
 	nowaitFlag        = flag.Bool("n", false, "Don't wait for the server to return")
 	supressoutputFlag = flag.Bool("u", false, "Don't display return values from the server")
 	createFrameFlag   = flag.Bool("c", false, "Create a new frame instead of trying to use the current Emacs frame")
+	socketName        = flag.String("s", "server", "Set filename of the UNIX socket for communication")
 )
 
 // server_quote_arg is alternative to Emacs's server-quote-arg
@@ -113,7 +113,7 @@ func process(c net.Conn, output io.Writer, command string) error {
 }
 
 func connect() (net.Conn, error) {
-	server_file := filepath.Join(server_socket_dir, server_name)
+	server_file := filepath.Join(server_socket_dir, *socketName)
 	return net.Dial("unix", server_file)
 }
 
