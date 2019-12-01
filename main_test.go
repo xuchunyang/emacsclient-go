@@ -1,13 +1,16 @@
 package main
 
-import "testing"
+import (
+	"testing"
+)
 
 func Test_server_quote_arg(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		input string
-		want string
+		want  string
 	}{
 		{"'(+ 1 2)", "'(+&_1&_2)"},
+		{"(emacs-pid)", "(emacs&-pid)"},
 	}
 	for _, test := range tests {
 		if got := server_quote_arg(test.input); got != test.want {

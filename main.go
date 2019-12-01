@@ -28,7 +28,7 @@ func server_quote_arg (arg string) string {
 		case '&':
 			return "&&"
 		case '-':
-			return "&_"
+			return "&-"
 		case '\n':
 			return "&n"
 		case ' ':
