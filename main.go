@@ -2,11 +2,11 @@ package main
 
 import (
 	"bufio"
+	"log"
 	"bytes"
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -20,7 +20,7 @@ var (
 )
 
 var (
-	eval = flag.String("e", "", "Eval an ELisp expression")
+	evalFlag = flag.Bool("e", false, "Evaluate the FILE arguments as ELisp expressions")
 )
 
 // server_quote_arg is alternative to Emacs's server-quote-arg
@@ -68,52 +68,79 @@ func ensureTrailingNewline(s string) string {
 	return s + "\n"
 }
 
-// Eval evaluates an ELisp expression
-func Eval(c net.Conn, w io.Writer, expr string) error {
-	command := "-eval " + ensureTrailingNewline(server_quote_arg(expr))
+func process(c net.Conn, output io.Writer, command string) error {
+	command = ensureTrailingNewline(command)
 	if _, err := io.WriteString(c, command); err != nil {
 		return err
 	}
 	input := bufio.NewScanner(c)
 	buf := new(bytes.Buffer)
+	var newline bool
 	for input.Scan() {
 		line := input.Text()
 		var s string
 		switch {
+		case strings.HasPrefix(line, "-emacs-pid"):
+			continue
 		case strings.HasPrefix(line, "-print "):
-			s = line[len("-print "):]
+			s = line[len("-print "):]+"\n"
+			newline = true
 		case strings.HasPrefix(line, "-print-nonl "):
+			if newline {
+				buf.Truncate(buf.Len()-1)
+			}
 			s = line[len("-print-nonl "):]
+			newline = false
 		case strings.HasPrefix(line, "-error "):
-			s = line[len("-error "):]
-		default:				// such as -emacs-pid 274
+			s = line[len("-error "):]+"\n"
+			newline = true
+		default:
+			log.Printf("%q is not supported\n", line)
 			continue
 		}
 		buf.WriteString(server_unquote_arg(s))
 	}
 	if buf.Len() > 0 {
-		buf.WriteByte('\n')
-		if _, err := io.Copy(w, buf); err != nil {
+		if _, err := io.Copy(output, buf); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+func connect() (net.Conn, error) {
+	server_file := filepath.Join(server_socket_dir, server_name)
+	return net.Dial("unix", server_file)
+}
+
+func buildCommand() string {
+	var commands []string
+	for _, arg := range flag.Args() {
+		var cmd string
+		if *evalFlag {
+			cmd = "-eval " + server_quote_arg(arg)
+		} else {
+			cmd = "-file " + server_quote_arg(arg)
+		}
+		commands = append(commands, cmd)
+	}
+	return strings.Join(commands, " ")
+}
+
 func main() {
 	flag.Parse()
-	if *eval == "" {
-		flag.Usage()
+	if flag.NArg() == 0 {
+		fmt.Fprintf(os.Stderr, "%s: file name or argument required\n", os.Args[0])
 		os.Exit(1)
 	}
-
-	server_file := filepath.Join(server_socket_dir, server_name)
-	conn, err := net.Dial("unix", server_file)
+	conn, err := connect()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(os.Stderr, "%s: %s", os.Args[0], err)
+		os.Exit(1)
 	}
 	defer conn.Close()
-	if err := Eval(conn, os.Stdout, *eval); err != nil {
-		log.Fatal(err)
+	if err := process(conn, os.Stdout, buildCommand()); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s", os.Args[0], err)
+		os.Exit(1)
 	}
 }
