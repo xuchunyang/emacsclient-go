@@ -1,14 +1,16 @@
 package main
 
 import (
+	"bufio"
+	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
-	"io"
-	"flag"
 	"regexp"
+	"strings"
 )
 
 var (
@@ -20,8 +22,8 @@ var (
 	eval = flag.String("e", "", "Eval an ELisp expression")
 )
 
-// server_quote_arg is ported from server-quote-arg
-func server_quote_arg (arg string) string {
+// server_quote_arg is alternative to Emacs's server-quote-arg
+func server_quote_arg(arg string) string {
 	r := regexp.MustCompile("[-&\n ]")
 	return r.ReplaceAllStringFunc(arg, func(x string) string {
 		switch x[0] {
@@ -35,6 +37,23 @@ func server_quote_arg (arg string) string {
 			return "&_"
 		}
 		return arg
+	})
+}
+
+// server_unquote_arg is alternative to Emacs's server-unquote-arg
+func server_unquote_arg(arg string) string {
+	r := regexp.MustCompile("&.")
+	return r.ReplaceAllStringFunc(arg, func(x string) string {
+		switch x[1] {
+		case '&':
+			return "&"
+		case '-':
+			return "-"
+		case '\n':
+			return "\n"
+		default:
+			return " "
+		}
 	})
 }
 
@@ -54,8 +73,23 @@ func Eval(c net.Conn, w io.Writer, expr string) error {
 	if _, err := io.WriteString(c, command); err != nil {
 		return err
 	}
-	if _, err := io.Copy(w, c); err != nil {
-		return err
+	input := bufio.NewScanner(c)
+	for input.Scan() {
+		line := input.Text()
+		var s string
+		switch {
+		case strings.HasPrefix(line, "-print "):
+			s = line[len("-print "):]
+		case strings.HasPrefix(line, "-print-nonl "):
+			s = line[len("-print-nonl "):]
+		case strings.HasPrefix(line, "-error "):
+			s = line[len("-error "):]
+		default:				// such as -emacs-pid 274
+			continue
+		}
+		if _, err := io.WriteString(w, server_unquote_arg(s)+"\n"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
