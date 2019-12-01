@@ -21,6 +21,7 @@ var (
 
 var (
 	evalFlag = flag.Bool("e", false, "Evaluate the FILE arguments as ELisp expressions")
+	nowaitFlag = flag.Bool("n", false, "Don't wait for the server to return")
 )
 
 // server_quote_arg is alternative to Emacs's server-quote-arg
@@ -115,6 +116,9 @@ func connect() (net.Conn, error) {
 
 func buildCommand() string {
 	var commands []string
+	if *nowaitFlag {
+		commands = append(commands, "-nowait")
+	}
 	for _, arg := range flag.Args() {
 		var cmd string
 		if *evalFlag {
