@@ -24,6 +24,7 @@ var (
 	evalFlag          = flag.Bool("e", false, "Evaluate the FILE arguments as ELisp expressions")
 	nowaitFlag        = flag.Bool("n", false, "Don't wait for the server to return")
 	supressoutputFlag = flag.Bool("u", false, "Don't display return values from the server")
+	createFrameFlag   = flag.Bool("c", false, "Create a new frame instead of trying to use the current Emacs frame")
 )
 
 // server_quote_arg is alternative to Emacs's server-quote-arg
@@ -120,6 +121,9 @@ func buildCommand() string {
 	var commands []string
 	if *nowaitFlag {
 		commands = append(commands, "-nowait")
+	}
+	if *createFrameFlag {
+		commands = append(commands, "-window-system")
 	}
 	for _, arg := range flag.Args() {
 		var cmd string
