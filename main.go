@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -74,6 +75,7 @@ func Eval(c net.Conn, w io.Writer, expr string) error {
 		return err
 	}
 	input := bufio.NewScanner(c)
+	buf := new(bytes.Buffer)
 	for input.Scan() {
 		line := input.Text()
 		var s string
@@ -87,7 +89,11 @@ func Eval(c net.Conn, w io.Writer, expr string) error {
 		default:				// such as -emacs-pid 274
 			continue
 		}
-		if _, err := io.WriteString(w, server_unquote_arg(s)+"\n"); err != nil {
+		buf.WriteString(server_unquote_arg(s))
+	}
+	if buf.Len() > 0 {
+		buf.WriteByte('\n')
+		if _, err := io.Copy(w, buf); err != nil {
 			return err
 		}
 	}
